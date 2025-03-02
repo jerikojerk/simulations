@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Grid</title>
+    <style>
+        body {
+            margin: 0;
+			padding 0;
+            background-color: #000;
+        }
+        #grid {
+/*            display: grid;
+            grid-template-columns: repeat(auto-fill, 10px);
+            grid-template-rows: repeat(auto-fill, 10px);
+*/			height:100%;
+			width:100%
+
+        }
+        .cell {
+            width: 2px;
+            height:2px;
+			float:left;
+			overflow:none;
+        }
+		
+		.cell:hover {
+			background-color:blue !important;
+		}
+		#content {
+			width:1024px;
+            height:800px;
+		}
+    </style>
+</head>
+<body>
+	<div id="content">
+    <div id="grid"></div>
+	</div>
+    <script>
+		
+		const cellsize = 2
+        const grid = document.getElementById('grid');
+        const width = 1024
+        const height = 800
+        const nb_cols = Math.floor(width / cellsize);
+        const nb_rows = Math.floor(height /cellsize);
+        const master_colors =  ['#FFFFE0', '#FFFACD', '#FFE4B5', '#FFD700', '#FFC107', '#FFA500', '#FF8C00', '#FF6347', '#FF4500', '#FF0000', '#B22222', '#8B0000','lightblue','blue']//,'darkblue']; // Light yellow to dark red
+ // Palette cyclique de 5 couleurs , '#8B0000'
+		const count = nb_cols * nb_rows;
+		var palette =[]
+		var dominante=[]
+
+		init=function (){
+			var cell 
+			for( i in master_colors ){
+				grid.style.backgroundColor=master_colors[i] 
+				palette.push(grid.style.backgroundColor)
+				dominante[grid.style.backgroundColor]=0
+			}
+			console.log ( palette);
+			
+			// Initialisation de la grille
+			for ( i = 0; i < count; i++) {
+				cell = document.createElement('div');
+				cell.classList.add('cell');
+//				cell.innerText=i 
+				cell.style.backgroundColor = palette[Math.floor(Math.random() * palette.length)];
+				grid.appendChild(cell);
+			}
+			console.log("inited nb row "+nb_rows+" nb_col "+nb_cols )
+		}
+	
+         getNextColor=function(color) {
+            const index = palette.indexOf(color);
+            return palette[(index + 1) % palette.length];
+        }
+		
+		 getIndex=function(row, col, numberOfColumns) {
+			//console.log( "log" + (row * numberOfColumns + col ))
+			return row * numberOfColumns + col;
+		}
+
+
+
+		detection_law0 = function(neighbors,nextColor){
+			if ( neighbors[0][1].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
+				return nextColor 
+			}
+			return neighbors[1][1].style.backgroundColor
+		}
+
+		detection_law1= function(neighbors,nextColor){
+			if ( neighbors[0][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[0][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[2][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}
+			return neighbors[1][1].style.backgroundColor
+		}
+		
+		detection_law2= function(neighbors,nextColor){
+			if ( neighbors[0][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
+				return nextColor 
+			} else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
+				return nextColor 
+			}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
+				return nextColor 
+			}
+			return neighbors[1][1].style.backgroundColor
+		}
+
+
+			
+         updateGrid=function(detection_law) {
+			//console.log(detection_law)
+			//console.time('Update Time');
+            const cells = document.querySelectorAll('.cell');
+			var newColors=[]
+			var change=0
+			const cols=nb_cols-1
+			const rows=nb_rows-1 
+
+			cells.forEach((cell, iterator) => {
+				//console.log("iterator : "+iterator)
+                col = iterator % nb_cols;
+                row = Math.floor(iterator/ nb_cols);
+				currentColor=cells[iterator].style.backgroundColor;
+                nextColor = getNextColor(currentColor);
+				// Vérification des voisins
+				if ( 0 == col ){
+					if (  0 == row  ){
+						a=getIndex( rows, 0,   nb_cols)
+						b=getIndex( 0,    0,   nb_cols)
+						c=getIndex( 1,    0,   nb_cols)
+						//console.log("row=0, c?"+c)
+						neighbors = [
+						[
+							cells[ getIndex( rows, col, nb_cols)], // Haut
+							cells[ getIndex( 0,    col, nb_cols)], // gauche
+							cells[ getIndex( 1,    col, nb_cols)] // Bas
+						],[
+							cells[ a ], // Haut
+							cells[ b ], // milieux
+							cells[ c ] // Bas
+						],[
+							cells[ a+1 ], // Haut
+							cells[ b+1 ], // Gauche
+							cells[ c+1 ] // Bas					
+						]];
+					}else if ( rows == row  ){
+						a=getIndex( row-1,  0,   nb_cols)
+						b=getIndex( row,    0,   nb_cols)
+						c=getIndex( 0,      0,   nb_cols)
+						neighbors = [
+						[
+							cells[ getIndex( row-1, cols, nb_cols)], // Haut
+							cells[ getIndex( row,   cols, nb_cols)], // gauche
+							cells[ getIndex( 0,     cols, nb_cols)] // Bas
+						],[
+							cells[ a ], // Haut
+							cells[ b ], // milieux
+							cells[ c ] // Bas
+						],[
+							cells[ a+1 ], // Haut
+							cells[ b+1 ], // Gauche
+							cells[ c+1 ] // Bas					
+						]];
+						
+					}else{
+						a=getIndex( row-1,  0,   nb_cols)
+						b=getIndex( row,    0,   nb_cols)
+						c=getIndex( row+1,  0,   nb_cols)
+						neighbors = [
+						[
+							cells[ getIndex( row-1, cols, nb_cols)], // Haut
+							cells[ getIndex( row,   cols, nb_cols)], // gauche
+							cells[ getIndex( row+1, cols, nb_cols)] // Bas
+						],[
+							cells[ a ], // Haut
+							cells[ b ], // milieux
+							cells[ c ] // Bas
+						],[
+							cells[ a+1 ], // Haut
+							cells[ b+1 ], // Gauche
+							cells[ c+1 ] // Bas					
+						]];
+					}
+				}else if ( cols == col ) {
+					if (  0 == row  ){
+						neighbors = [
+						neighbors[1],
+						neighbors[2],[
+							cells[ getIndex( rows, 0, nb_cols)], // Haut
+							cells[ getIndex( 0,    0, nb_cols)], // Gauche
+							cells[ getIndex( 1,    0, nb_cols)] // Bas					
+						]];
+					}else if ( rows == row  ){
+						neighbors = [
+						neighbors[1],
+						neighbors[2],[
+							cells[ getIndex( row-1, 0, nb_cols)], // Haut
+							cells[ getIndex( row,   0, nb_cols)], // Gauche
+							cells[ getIndex( 0,     0, nb_cols)] // Bas
+						]];
+					}else{
+						col_plus=col+1
+						neighbors = [
+						neighbors[1],
+						neighbors[2],[
+							cells[ getIndex( row-1, 0, nb_cols)], // Haut
+							cells[ getIndex( row,   0, nb_cols)], // Gauche
+							cells[ getIndex( row+1, 0, nb_cols)] // Bas
+						]];
+					}
+				}
+				else{
+					//console.log("normal sucessision")
+					if ( 0 == row ){
+						neighbors = [
+								neighbors[1],
+								neighbors[2],[
+								cells[ getIndex( rows,  col+1, nb_cols)], // Haut
+								cells[ getIndex( row,   col+1, nb_cols)], // Gauche
+								cells[ getIndex( row+1, col+1, nb_cols)] // Bas		
+						]];
+					}else if( rows == row ) {
+						neighbors = [
+							neighbors[1],
+							neighbors[2],[
+							cells[ getIndex( row-1, col+1, nb_cols)], // Haut
+							cells[ getIndex( row,   col+1, nb_cols)], // Gauche
+							cells[ getIndex( 0,     col+1, nb_cols)] // Bas		
+						]];
+					}else {
+						neighbors = [
+							neighbors[1],
+							neighbors[2],[
+							cells[ getIndex( row-1, col+1, nb_cols)], // Haut
+							cells[ getIndex( row,   col+1, nb_cols)], // Gauche
+							cells[ getIndex( row+1, col+1, nb_cols)] // Bas		
+					]];
+					
+					}
+				}
+				
+                newColors[iterator]=currentColor;
+				
+				//console.log(neighbors)
+				
+				//for ( let m=0  ; m < 3; m++)  {
+				newColors[iterator] = detection_law( neighbors, nextColor )
+				//}
+				
+            });
+            
+			
+            // Mise à jour des couleurs
+            cells.forEach((cell, index) => {
+                cell.style.backgroundColor = newColors[index];
+            });
+			//console.timeEnd('Update Time');
+			//console.log("change "+change)
+        }
+		
+		init()
+		
+	
+	executeWithTimeProbe = function (fn ) {
+		var times = 8
+		var duration=0
+		var iteration=[]
+		var executionTime = 0;
+		var totalExecTime = 0;
+		for( it=1;it<times;it++){
+			startTime = performance.now();
+			fn()
+			endTime = performance.now();
+			executionTime = endTime - startTime;
+			totalExecTime+=executionTime
+			average =  totalExecTime / it 
+			if ( Math.abs((executionTime - average)/average)>0.1  ){
+				times++	
+				console.log("ralonge: "+executionTime+" <> "+ average)
+			}
+		}
+		
+		console.log("Total execute time: "+totalExecTime+" ms");
+		console.log("Average execution time: "+average+" ms");
+		timing = Math.ceil(average*1.15/10) * 10;
+		console.log("recommand: "+timing+" ms");
+		
+		intervalId= setInterval( fn, timing);
+		setTimeout(
+			() => {
+				clearInterval(intervalId);
+				console.log('Intervalle arrêté');}, 
+				2000*timing );
+		
+	}
+	
+	executeWithTimeProbe(function(){
+		updateGrid(detection_law0);
+    //updateGrid(detection_law1);
+    //updateGrid(detection_law2);
+	},
+		10);
+	
+
+
+    </script>
+</body>
+</html>
