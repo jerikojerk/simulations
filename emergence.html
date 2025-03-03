@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Color Grid</title>
+    <title>Emergence</title>
     <style>
         body {
             margin: 0;
 			padding 0;
-            background-color: #000;
+            background-color: white;
         }
         #grid {
-/*            display: grid;
-            grid-template-columns: repeat(auto-fill, 10px);
-            grid-template-rows: repeat(auto-fill, 10px);
-*/			height:100%;
+            /*display: grid;
+            grid-template-columns: repeat(auto-fill, 3px);
+            grid-template-rows: repeat(auto-fill, 3px);*/
+			height:100%;
 			width:100%
 
         }
@@ -25,276 +25,331 @@
 			overflow:none;
         }
 		
-		.cell:hover {
-			background-color:blue !important;
-		}
 		#content {
-			width:1024px;
-            height:800px;
+			width:0px;
+            height:0px;
+			float:left;
 		}
+		form {
+			float:left;
+		}
+		
     </style>
 </head>
 <body>
-	<div id="content">
-    <div id="grid"></div>
-	</div>
+	<div id="content"><div id="grid"></div></div>
+	<form id="configForm"><fieldset><legend>Configurez votre monde</legend>
+        <label for="size">Taille de la cellule (1 à 10) :</label>
+        <input type="number" id="size" name="size" min="1" max="10"  value="3" required><br>
+        <label for="paletteSize">Nombre de couleurs :</label>
+        <input type="number" id="paletteSize" name="paletteSize" min="4" max="20" value="12" required><br><br>
+        <label for="width">Largeur en colonnes (3 à 500) :</label>
+        <input type="number" id="width" name="width" min="10" max="1024" value="300" required><br>
+        <label for="height">Hauteur en lignes (3 à 500) :</label>
+        <input type="number" id="height" name="height" min="10" max="1024" value="200" required><br><br>
+        <label for="law">Sélectionner la loi :</label>
+        <select id="law" name="law" required>
+            <option value="law1">Loi 1</option>
+            <option value="law2">Loi 2</option>
+            <option value="law3">Loi 3</option>
+        </select>
+        <br><br>
+        <button type="submit" id="submitButton">&nbsp;&nbsp;&nbsp;Start&nbsp;&nbsp;&nbsp;</button>
+        <button type="button" id="restartButton" disabled>Restart</button>
+        <button type="button" id="clearButton" disabled>Effacer</button>
+        <button type="button" id="stopButton" disabled>Stop</button>
+		<p>Ce script reproduit l'experience des <a href="https://www.youtube.com/watch?v=y-5E_pitedE&t=924s">automates cellulaires cycliques</a>.</p>
+    </fieldset></form>
+	
     <script>
-		
-		const cellsize = 2
-        const grid = document.getElementById('grid');
-        const width = 1024
-        const height = 800
-        const nb_cols = Math.floor(width / cellsize);
-        const nb_rows = Math.floor(height /cellsize);
-        const master_colors =  ['#FFFFE0', '#FFFACD', '#FFE4B5', '#FFD700', '#FFC107', '#FFA500', '#FF8C00', '#FF6347', '#FF4500', '#FF0000', '#B22222', '#8B0000','lightblue','blue']//,'darkblue']; // Light yellow to dark red
- // Palette cyclique de 5 couleurs , '#8B0000'
-		const count = nb_cols * nb_rows;
-		var palette =[]
-		var dominante=[]
 
-		init=function (){
-			var cell 
-			for( i in master_colors ){
-				grid.style.backgroundColor=master_colors[i] 
-				palette.push(grid.style.backgroundColor)
-				dominante[grid.style.backgroundColor]=0
-			}
-			console.log ( palette);
-			
-			// Initialisation de la grille
-			for ( i = 0; i < count; i++) {
+	const grid = document.getElementById('grid');
+	const uparams={
+		cellsize:0,
+		width:0,
+		height:0,
+		psize:0,
+		startColor:[0, 0, 230],// light blue rgb( 173 , 216 , 230) 
+		middleColor:[255,255,0],//Light yellow (RGB: 255, 255, 224)
+		endColor:[255,128, 0],// Dark red (RGB: 139, 0, 0) 
+		law:''
+		};
+	const exec={
+		nb_cols:0,
+		nb_rows:0,
+		count:0,
+		job:0};
+	
+	const palette=[];
+	
+	init=function(){
+		//initialisation des palettes
+		var master_colors=makeColors(uparams.psize);
+		for( i in master_colors ){
+			grid.style.backgroundColor=master_colors[i] 
+			palette.push(grid.style.backgroundColor)
+		}
+		grid.style.backgroundColor='white'
+		console.log ("palette",palette);
+		// correction du css
+		modifyCSS();
+		// Initialisation de la grille
+		var cell;
+		cell=grid.querySelectorAll('.cell');			
+		if( cell.length < exec.count ) {
+			for ( i = 0; i < exec.count; i++) {
 				cell = document.createElement('div');
 				cell.classList.add('cell');
-//				cell.innerText=i 
+	//				cell.innerText=i 
 				cell.style.backgroundColor = palette[Math.floor(Math.random() * palette.length)];
 				grid.appendChild(cell);
 			}
-			console.log("inited nb row "+nb_rows+" nb_col "+nb_cols )
+		}else{
+			for( i = cell.length; i > exec.count ; i-- ){
+				grid.removeChild(cell[i]);
+			}
 		}
+		console.log("inited  ",exec)
+	}
 	
-         getNextColor=function(color) {
-            const index = palette.indexOf(color);
-            return palette[(index + 1) % palette.length];
-        }
-		
-		 getIndex=function(row, col, numberOfColumns) {
-			//console.log( "log" + (row * numberOfColumns + col ))
-			return row * numberOfColumns + col;
-		}
-
-
-
-		detection_law0 = function(neighbors,nextColor){
-			if ( neighbors[0][1].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
-				return nextColor 
-			}
-			return neighbors[1][1].style.backgroundColor
-		}
-
-		detection_law1= function(neighbors,nextColor){
-			if ( neighbors[0][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[0][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[2][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}
-			return neighbors[1][1].style.backgroundColor
-		}
-		
-		detection_law2= function(neighbors,nextColor){
-			if ( neighbors[0][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
-				return nextColor 
-			} else if ( neighbors[1][0].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
-				return nextColor 
-			}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
-				return nextColor 
-			}
-			return neighbors[1][1].style.backgroundColor
-		}
-
-
-			
-         updateGrid=function(detection_law) {
-			//console.log(detection_law)
-			//console.time('Update Time');
-            const cells = document.querySelectorAll('.cell');
-			var newColors=[]
-			var change=0
-			const cols=nb_cols-1
-			const rows=nb_rows-1 
-
-			cells.forEach((cell, iterator) => {
-				//console.log("iterator : "+iterator)
-                col = iterator % nb_cols;
-                row = Math.floor(iterator/ nb_cols);
-				currentColor=cells[iterator].style.backgroundColor;
-                nextColor = getNextColor(currentColor);
-				// Vérification des voisins
-				if ( 0 == col ){
-					if (  0 == row  ){
-						a=getIndex( rows, 0,   nb_cols)
-						b=getIndex( 0,    0,   nb_cols)
-						c=getIndex( 1,    0,   nb_cols)
-						//console.log("row=0, c?"+c)
-						neighbors = [
-						[
-							cells[ getIndex( rows, col, nb_cols)], // Haut
-							cells[ getIndex( 0,    col, nb_cols)], // gauche
-							cells[ getIndex( 1,    col, nb_cols)] // Bas
-						],[
-							cells[ a ], // Haut
-							cells[ b ], // milieux
-							cells[ c ] // Bas
-						],[
-							cells[ a+1 ], // Haut
-							cells[ b+1 ], // Gauche
-							cells[ c+1 ] // Bas					
-						]];
-					}else if ( rows == row  ){
-						a=getIndex( row-1,  0,   nb_cols)
-						b=getIndex( row,    0,   nb_cols)
-						c=getIndex( 0,      0,   nb_cols)
-						neighbors = [
-						[
-							cells[ getIndex( row-1, cols, nb_cols)], // Haut
-							cells[ getIndex( row,   cols, nb_cols)], // gauche
-							cells[ getIndex( 0,     cols, nb_cols)] // Bas
-						],[
-							cells[ a ], // Haut
-							cells[ b ], // milieux
-							cells[ c ] // Bas
-						],[
-							cells[ a+1 ], // Haut
-							cells[ b+1 ], // Gauche
-							cells[ c+1 ] // Bas					
-						]];
-						
-					}else{
-						a=getIndex( row-1,  0,   nb_cols)
-						b=getIndex( row,    0,   nb_cols)
-						c=getIndex( row+1,  0,   nb_cols)
-						neighbors = [
-						[
-							cells[ getIndex( row-1, cols, nb_cols)], // Haut
-							cells[ getIndex( row,   cols, nb_cols)], // gauche
-							cells[ getIndex( row+1, cols, nb_cols)] // Bas
-						],[
-							cells[ a ], // Haut
-							cells[ b ], // milieux
-							cells[ c ] // Bas
-						],[
-							cells[ a+1 ], // Haut
-							cells[ b+1 ], // Gauche
-							cells[ c+1 ] // Bas					
-						]];
-					}
-				}else if ( cols == col ) {
-					if (  0 == row  ){
-						neighbors = [
-						neighbors[1],
-						neighbors[2],[
-							cells[ getIndex( rows, 0, nb_cols)], // Haut
-							cells[ getIndex( 0,    0, nb_cols)], // Gauche
-							cells[ getIndex( 1,    0, nb_cols)] // Bas					
-						]];
-					}else if ( rows == row  ){
-						neighbors = [
-						neighbors[1],
-						neighbors[2],[
-							cells[ getIndex( row-1, 0, nb_cols)], // Haut
-							cells[ getIndex( row,   0, nb_cols)], // Gauche
-							cells[ getIndex( 0,     0, nb_cols)] // Bas
-						]];
-					}else{
-						col_plus=col+1
-						neighbors = [
-						neighbors[1],
-						neighbors[2],[
-							cells[ getIndex( row-1, 0, nb_cols)], // Haut
-							cells[ getIndex( row,   0, nb_cols)], // Gauche
-							cells[ getIndex( row+1, 0, nb_cols)] // Bas
-						]];
-					}
+	modifyCSS=function() {
+		const styleSheets = document.styleSheets;
+		for (let i = 0; i < styleSheets.length; i++) {
+			const rules = styleSheets[i].cssRules || styleSheets[i].rules;
+			for (let j = 0; j < rules.length; j++) {
+				if (rules[j].selectorText === '.cell') {
+					rules[j].style.width = uparams.cellsize+'px';
+					rules[j].style.height= uparams.cellsize+'px';
+					console.log( rules[j] );
+				}else if ( rules[j].selectorText === '#content'){
+					rules[j].style.width = uparams.width+'px';
+					rules[j].style.height= uparams.height+'px';
+					console.log( rules[j] );
 				}
-				else{
-					//console.log("normal sucessision")
-					if ( 0 == row ){
-						neighbors = [
-								neighbors[1],
-								neighbors[2],[
-								cells[ getIndex( rows,  col+1, nb_cols)], // Haut
-								cells[ getIndex( row,   col+1, nb_cols)], // Gauche
-								cells[ getIndex( row+1, col+1, nb_cols)] // Bas		
-						]];
-					}else if( rows == row ) {
-						neighbors = [
-							neighbors[1],
-							neighbors[2],[
-							cells[ getIndex( row-1, col+1, nb_cols)], // Haut
-							cells[ getIndex( row,   col+1, nb_cols)], // Gauche
-							cells[ getIndex( 0,     col+1, nb_cols)] // Bas		
-						]];
-					}else {
-						neighbors = [
-							neighbors[1],
-							neighbors[2],[
-							cells[ getIndex( row-1, col+1, nb_cols)], // Haut
-							cells[ getIndex( row,   col+1, nb_cols)], // Gauche
-							cells[ getIndex( row+1, col+1, nb_cols)] // Bas		
+			}
+		}
+	}
+	
+	makeColors=function(size){
+		var ratio,i,r,g,b,colors=new Array(size);
+		for (i = 0; i < 1.5*size/2; i++) {
+			ratio = i / (size - 1);
+			r = Math.round(uparams.startColor[0] * (1 - ratio) + uparams.middleColor[0] * ratio);
+			g = Math.round(uparams.startColor[1] * (1 - ratio) + uparams.middleColor[1] * ratio);
+			b = Math.round(uparams.startColor[2] * (1 - ratio) + uparams.middleColor[2] * ratio);
+			colors.push(`rgb(${r}, ${g}, ${b})`);
+		}
+		for ( ;i < size ; i++){
+			ratio = i / (size - 1);
+			r = Math.round(uparams.middleColor[0] * (1 - ratio) + uparams.endColor[0] * ratio);
+			g = Math.round(uparams.middleColor[1] * (1 - ratio) + uparams.endColor[1] * ratio);
+			b = Math.round(uparams.middleColor[2] * (1 - ratio) + uparams.endColor[2] * ratio);
+			colors.push(`rgb(${r}, ${g}, ${b})`);
+		}
+		return colors;
+	}
+
+
+	getNextColor=function(color) {
+		const index = palette.indexOf(color);
+		return palette[(index + 1) % palette.length];
+	}
+	
+	getIndex=function(row, col) {
+		//console.log( "log" + (row * numberOfColumns + col ))
+		return row * exec.nb_cols + col;
+	}
+
+	detection_law0 = function(neighbors,nextColor){
+		if ( neighbors[0][1].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
+			return nextColor 
+		}
+		return neighbors[1][1].style.backgroundColor
+	}
+
+	detection_law1= function(neighbors,nextColor){
+		if ( neighbors[0][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[0][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[2][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}
+		return neighbors[1][1].style.backgroundColor
+	}
+		
+	detection_law2= function(neighbors,nextColor){
+		if ( neighbors[0][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[0][1].style.backgroundColor==nextColor ){
+			return nextColor 
+		} else if ( neighbors[1][0].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[1][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[2][1].style.backgroundColor==nextColor ){
+			return nextColor 
+		}else if ( neighbors[2][2].style.backgroundColor==nextColor ){
+			return nextColor 
+		}
+		return neighbors[1][1].style.backgroundColor
+	}
+
+
+		
+	updateGrid=function(detection_law) {
+		const cells = document.querySelectorAll('.cell');
+		const cols=exec.nb_cols-1
+		const rows=exec.nb_rows-1 
+		const newColors=new Array(exec.count)
+		var a,b,c,col,row,currentColor,nextColor,neighbors
+		cells.forEach((cell, iterator) => {
+			col = iterator % exec.nb_cols;
+			row = Math.floor(iterator/ exec.nb_cols);
+			currentColor=cells[iterator].style.backgroundColor;
+			nextColor = getNextColor(currentColor);
+			if ( 0 == col ){
+				if (  0 == row  ){
+					a=getIndex( rows, 0)
+					b=getIndex( 0,    0)
+					c=getIndex( 1,    0)
+					//console.log("row=0, c?"+c)
+					neighbors = [
+					[
+						cells[ getIndex( rows, col)], // Haut
+						cells[ getIndex( 0,    col)], // gauche
+						cells[ getIndex( 1,    col)] // Bas
+					],[
+						cells[ a ], // Haut
+						cells[ b ], // milieux
+						cells[ c ] // Bas
+					],[
+						cells[ a+1 ], // Haut
+						cells[ b+1 ], // Gauche
+						cells[ c+1 ] // Bas					
+					]];
+				}else if ( rows == row  ){
+					a=getIndex( row-1,  0)
+					b=getIndex( row,    0)
+					c=getIndex( 0,      0)
+					neighbors = [
+					[
+						cells[ getIndex( row-1, cols)], // Haut
+						cells[ getIndex( row,   cols)], // gauche
+						cells[ getIndex( 0,     cols)] // Bas
+					],[
+						cells[ a ], // Haut
+						cells[ b ], // milieux
+						cells[ c ] // Bas
+					],[
+						cells[ a+1 ], // Haut
+						cells[ b+1 ], // Gauche
+						cells[ c+1 ] // Bas					
 					]];
 					
-					}
+				}else{
+					a=getIndex( row-1,  0)
+					b=getIndex( row,    0)
+					c=getIndex( row+1,  0)
+					neighbors = [
+					[
+						cells[ getIndex( row-1, cols)], // Haut
+						cells[ getIndex( row,   cols)], // gauche
+						cells[ getIndex( row+1, cols)] // Bas
+					],[
+						cells[ a ], // Haut
+						cells[ b ], // milieux
+						cells[ c ] // Bas
+					],[
+						cells[ a+1 ], // Haut
+						cells[ b+1 ], // Gauche
+						cells[ c+1 ] // Bas					
+					]];
 				}
+			}else if ( cols == col ) {
+				if (  0 == row  ){
+					neighbors = [
+					neighbors[1],
+					neighbors[2],[
+						cells[ getIndex( rows, 0)], // Haut
+						cells[ getIndex( 0,    0)], // Gauche
+						cells[ getIndex( 1,    0)] // Bas					
+					]];
+				}else if ( rows == row  ){
+					neighbors = [
+					neighbors[1],
+					neighbors[2],[
+						cells[ getIndex( row-1, 0)], // Haut
+						cells[ getIndex( row,   0)], // Gauche
+						cells[ getIndex( 0,     0)] // Bas
+					]];
+				}else{
+					col_plus=col+1
+					neighbors = [
+					neighbors[1],
+					neighbors[2],[
+						cells[ getIndex( row-1, 0)], // Haut
+						cells[ getIndex( row,   0)], // Gauche
+						cells[ getIndex( row+1, 0)] // Bas
+					]];
+				}
+			}
+			else{
+				if ( 0 == row ){
+					neighbors = [
+						neighbors[1],
+						neighbors[2],[
+						cells[ getIndex( rows,  col+1)], // Haut
+						cells[ getIndex( row,   col+1)], // Gauche
+						cells[ getIndex( row+1, col+1)] // Bas		
+					]];
+				}else if( rows == row ) {
+					neighbors = [
+						neighbors[1],
+						neighbors[2],[
+						cells[ getIndex( row-1, col+1)], // Haut
+						cells[ getIndex( row,   col+1)], // Gauche
+						cells[ getIndex( 0,     col+1)] // Bas
+					]];
+				}else {
+					neighbors = [
+						neighbors[1],
+						neighbors[2],[
+						cells[ getIndex( row-1, col+1)], // Haut
+						cells[ getIndex( row,   col+1)], // Gauche
+						cells[ getIndex( row+1, col+1)] // Bas
+				]];
 				
-                newColors[iterator]=currentColor;
-				
-				//console.log(neighbors)
-				
-				//for ( let m=0  ; m < 3; m++)  {
-				newColors[iterator] = detection_law( neighbors, nextColor )
-				//}
-				
-            });
-            
-			
-            // Mise à jour des couleurs
-            cells.forEach((cell, index) => {
-                cell.style.backgroundColor = newColors[index];
-            });
-			//console.timeEnd('Update Time');
-			//console.log("change "+change)
-        }
+				}
+			}			
+			newColors[iterator]=currentColor;
+			newColors[iterator]=detection_law( neighbors, nextColor )
+		});
 		
-		init()
+		// Mise à jour des couleurs
+		cells.forEach((cell, index) => {
+			cell.style.backgroundColor = newColors[index];
+		});
+	}
 		
-	
-	executeWithTimeProbe = function (fn ) {
+	executeWithTimeProbe = function(fn) {
 		var times = 8
-		var duration=0
-		var iteration=[]
 		var executionTime = 0;
-		var totalExecTime = 0;
+		var totalExecTime = 50; //to account for variation
 		for( it=1;it<times;it++){
 			startTime = performance.now();
 			fn()
@@ -302,35 +357,93 @@
 			executionTime = endTime - startTime;
 			totalExecTime+=executionTime
 			average =  totalExecTime / it 
-			if ( Math.abs((executionTime - average)/average)>0.1  ){
-				times++	
-				console.log("ralonge: "+executionTime+" <> "+ average)
-			}
 		}
 		
 		console.log("Total execute time: "+totalExecTime+" ms");
 		console.log("Average execution time: "+average+" ms");
-		timing = Math.ceil(average*1.15/10) * 10;
+		timing = Math.ceil(average*1.2/10) * 10;
 		console.log("recommand: "+timing+" ms");
 		
-		intervalId= setInterval( fn, timing);
+		exec.job=setInterval( fn, timing);
 		setTimeout(
 			() => {
-				clearInterval(intervalId);
+				clearInterval(exec.job);
 				console.log('Intervalle arrêté');}, 
-				2000*timing );
-		
+				20000*timing );
 	}
 	
-	executeWithTimeProbe(function(){
-		updateGrid(detection_law0);
-    //updateGrid(detection_law1);
-    //updateGrid(detection_law2);
-	},
-		10);
 	
+	document.getElementById('configForm').addEventListener('submit', function(event) {
+		event.preventDefault(); // Empêche l'envoi du formulaire
+		console.log("bounton submit")
+		uparams.cellsize = document.getElementById('size').value;
+		exec.nb_cols = document.getElementById('width').value;
+		exec.nb_rows = document.getElementById('height').value;
+		uparams.psize = document.getElementById('paletteSize').value;
+		uparams.law = document.getElementById('law').value
+		switch(uparams.law){
+			case "law1": detection_law=detection_law0;break;
+			case "law1": detection_law=detection_law1;break;
+			case "law3": detection_law=detection_law2;break;
+			default: detection_law=detection_law0; 
+		}
+	
+		uparams.width = exec.nb_cols*uparams.cellsize;
+		uparams.height = exec.nb_rows*uparams.cellsize;
+		exec.count   = exec.nb_cols * exec.nb_rows
+		
+		console.log('uparams:',  uparams);
+		console.log('exec:', exec);
+		console.log('Loi sélectionnée:', detection_law);
+		
+		if( exec.count <20000 || confirm("Démarrer avec "+exec.count+" points")){
+			document.getElementById('submitButton').setAttribute("disabled","disabled");		
+			console.log("go!")
+			init()	
+			executeWithTimeProbe(function(){
+				updateGrid(detection_law);
+			},
+			10);
+			document.getElementById('stopButton').removeAttribute("disabled");
+		}
+	
+		
+	});
+
+	document.getElementById('stopButton').addEventListener('click', function() {
+		document.getElementById('stopButton').setAttribute("disabled","disabled");
+		console.log('Bouton Stop cliqué');
+		//suppression des grilles :) 
+		clearInterval(exec.job);
+		document.getElementById('clearButton').removeAttribute("disabled");
+		document.getElementById('restartButton').removeAttribute("disabled");
+	});
+
+	document.getElementById('clearButton').addEventListener('click', function() {
+		document.getElementById('stopButton').setAttribute("disabled","disabled");
+		document.getElementById('restartButton').setAttribute("disabled","disabled");
+		console.log('Bouton clear cliqué');
+		cell=grid.querySelectorAll('.cell');
+		it=cell.length
+		for ( it = cell.length-1; it >= 0 ; it--){
+			grid.removeChild(cell[it]);
+		}
+		document.getElementById('submitButton').removeAttribute("disabled");
+	});
 
 
-    </script>
+	document.getElementById('restartButton').addEventListener('click', function() {
+		document.getElementById('restartButton').setAttribute("disabled","disabled");
+		document.getElementById('clearButton').setAttribute("disabled","disabled");
+		console.log('Bouton restart cliqué');
+		executeWithTimeProbe(function(){
+				updateGrid(detection_law);
+			},
+			10);
+		document.getElementById('stopButton').removeAttribute("disabled");
+			
+	});
+
+</script>
 </body>
 </html>
