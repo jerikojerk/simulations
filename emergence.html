@@ -64,8 +64,8 @@ form {
 		</p>
         <button type="submit" id="submitButton">&nbsp;&nbsp;&nbsp;Start&nbsp;&nbsp;&nbsp;</button>
         <button type="button" id="restartButton" disabled>Restart</button>
-        <button type="button" id="clearButton" disabled>Effacer</button>
-        <button type="button" id="stopButton" disabled>Stop</button>
+        <button type="button" id="clearButton"   disabled>Effacer</button>
+        <button type="button" id="stopButton"    disabled>Stop</button>
 		<p>Ce script reproduit l'experience des <a href="https://www.youtube.com/watch?v=y-5E_pitedE&t=924s">automates cellulaires cycliques</a>.</p>
     </fieldset></form>
 	
@@ -88,10 +88,17 @@ form {
 		debug:false
 		};
 	const exec={
+		performance:[],
+		jobWatcher:null,
+		jobEndOfTime:3600000, // 1 heure
+		job:null,
+		jobRefresh:6000,
+		perflenght:20,
 		nb_cols:0,
 		nb_rows:0,
 		count:0,
-		job:0};
+		detection_law:undefined		
+	};
 	
 	const palette=[];
 	
@@ -128,7 +135,44 @@ form {
 		}
 		console.log("init ended  ",exec)
 	}
+
 	
+	const convertHexToRgb = function (hex) {
+		var bigint = parseInt(hex.slice(1), 16);
+		var r = (bigint >> 16) & 255;
+		var g = (bigint >> 8) & 255;
+		var b = bigint & 255;
+		return [r, g, b];
+	}
+
+	const debugNeighboorsCells=function(neighbors){
+		var tmp = []
+		neighbors.flat().forEach((cell,index) => {
+			tmp.push( index+"=>"+cell.innerText)
+		});
+		console.log(tmp.join(" ,") )
+	}
+
+	const makeColors=function(size,startColor,middleColor,endColor){
+		var ratio,i,r,g,b,colors=[];
+		for (i = 0; i < size-3; i++) {
+			ratio = i / (size - 4);
+			r = Math.round(startColor[0] * (1 - ratio) + (middleColor[0] * ratio));
+			g = Math.round(startColor[1] * (1 - ratio) + (middleColor[1] * ratio));
+			b = Math.round(startColor[2] * (1 - ratio) + (middleColor[2] * ratio));
+			colors.push(`rgb(${r}, ${g}, ${b})`);
+		}
+		var tmp = i -1 
+		for ( ;i < size ; i++){
+			ratio = (i -tmp) / (size -tmp );
+			r = Math.round(middleColor[0] * (1 - ratio) + (endColor[0] * ratio));
+			g = Math.round(middleColor[1] * (1 - ratio) + (endColor[1] * ratio));
+			b = Math.round(middleColor[2] * (1 - ratio) + (endColor[2] * ratio));
+			colors.push(`rgb(${r}, ${g}, ${b})`);
+		}
+		return colors;
+	}
+
 	const modifyCSS=function() {
 		const styleSheets = document.styleSheets;
 		for (let i = 0; i < styleSheets.length; i++) {
@@ -149,33 +193,6 @@ form {
 				console.log( rules[j] );
 			}
 		}
-	}
-	
-	const convertHexToRgb = function (hex) {
-		var bigint = parseInt(hex.slice(1), 16);
-		var r = (bigint >> 16) & 255;
-		var g = (bigint >> 8) & 255;
-		var b = bigint & 255;
-		return [r, g, b];
-	}
-	const makeColors=function(size,startColor,middleColor,endColor){
-		var ratio,i,r,g,b,colors=[];
-		for (i = 0; i < size-3; i++) {
-			ratio = i / (size - 4);
-			r = Math.round(startColor[0] * (1 - ratio) + (middleColor[0] * ratio));
-			g = Math.round(startColor[1] * (1 - ratio) + (middleColor[1] * ratio));
-			b = Math.round(startColor[2] * (1 - ratio) + (middleColor[2] * ratio));
-			colors.push(`rgb(${r}, ${g}, ${b})`);
-		}
-		var tmp = i -1 
-		for ( ;i < size ; i++){
-			ratio = (i -tmp) / (size -tmp );
-			r = Math.round(middleColor[0] * (1 - ratio) + (endColor[0] * ratio));
-			g = Math.round(middleColor[1] * (1 - ratio) + (endColor[1] * ratio));
-			b = Math.round(middleColor[2] * (1 - ratio) + (endColor[2] * ratio));
-			colors.push(`rgb(${r}, ${g}, ${b})`);
-		}
-		return colors;
 	}
 
 	const modifyElementClass = function (array, cssClass, add) {
@@ -237,7 +254,7 @@ form {
 	}
 
 	const updateGrid=function(detection_law) {
-		console.log( "updateGrid" )
+		//console.log( "updateGrid" )
 		const cells = document.querySelectorAll('.cell');
 		const cols=exec.nb_cols-1
 		const rows=exec.nb_rows-1 
@@ -333,54 +350,45 @@ form {
 	}
 	
 
-
-
-
-	const debugNeighboorsCells=function(neighbors){
-		var tmp = []
-		neighbors.flat().forEach((cell,index) => {
-			tmp.push( index+"=>"+cell.innerText)
-		});
-		console.log(tmp.join(" ,") )
+	
+	const executeWithPerformanceCounter = function(fn){
+		var startTime = performance.now();
+		fn()
+		var endTime = performance.now();
+		exec.performance.push( endTime - startTime );
+		//console.log("executeWithPerformanceCounter",fn)
+		//console.log( (endTime-startTime)+ " ms")
 	}
 
-
-	const executeWithTimeProbe = function(fn) {
-		var times = 8
-		var executionTime = 0;
-		var totalExecTime = 50; //to account for variation
-		for( it=1;it<times;it++){
-			startTime = performance.now();
-			fn()
-			endTime = performance.now();
-			executionTime = endTime - startTime;
-			totalExecTime+=executionTime
-			average =  totalExecTime / it 
+	const executeAdjustFrequency = function(fn) {
+		clearInterval(exec.job);
+		// let's first iterate a little to gather statistics 
+		console.log( "executeAdjustFrequency")
+		while( exec.performance.length < exec.perflenght / 2 ){
+			executeWithPerformanceCounter(fn);
 		}
-		
-		console.log("Total execute time: "+totalExecTime+" ms");
-		console.log("Average execution time: "+average+" ms");
-		timing = Math.ceil(average*1.1/10) * 10;
-		console.log("recommand: "+timing+" ms");
-		
-		exec.job=setInterval( fn, timing);
-		setTimeout(
-			() => {
-				clearInterval(exec.job);
-				console.log('Intervalle arrêté');
-			},20000*timing );
+		// in case we have too much data 
+		if ( exec.performance.length > exec.perflenght ){
+			exec.performance.splice(0, exec.performance.length - exec.perflenght);
+		}	
+		//lets add 2ms for each measure, so we will never be at 0 
+		total = exec.performance.reduce((a, b) => a+b, exec.performance.length *2 )
+		nb = exec.performance.length 
+		timing = Math.ceil( total / nb  ) 
+		exec.job=setInterval( function(){ executeWithPerformanceCounter(fn)}, timing);
+		//console.log("timing",timing,exec);
 	}
 	
-	/*
-	const waitSynchronous = function(ms) {
-		const start = Date.now();
-		var now = start;
-		while (now - start < ms) {
-			now = Date.now();
-		}
-	}
 	
-	*/
+
+	const run= function(){
+		const fn = function(){
+			executeAdjustFrequency(()=>{updateGrid(exec.detection_law)})
+		}
+		exec.jobWatcher = setInterval(fn, exec.jobRefresh);
+		setTimeout(function(){clearInterval(exec.jobWatcher);clearInterval(exec.job)}, exec.jobEndOfTime);
+		fn();
+	}
 	
 	
 	document.getElementById('configForm').addEventListener('submit', function(event) {
@@ -395,10 +403,10 @@ form {
 		uparams.middleColor = document.getElementById('middleColor').value;
 		uparams.endColor = document.getElementById('endColor').value;		
 		switch(uparams.law){
-			case "law1": detection_law=detection_law0;break;
-			case "law1": detection_law=detection_law1;break;
-			case "law3": detection_law=detection_law2;break;
-			default: detection_law=detection_law0; 
+			case "law1": exec.detection_law=detection_law0;break;
+			case "law1": exec.detection_law=detection_law1;break;
+			case "law3": exec.detection_law=detection_law2;break;
+			default: exec.detection_law=detection_law0; 
 		}
 	
 		uparams.width = exec.nb_cols*uparams.cellsize;
@@ -407,26 +415,23 @@ form {
 		
 		console.log('uparams:',  uparams);
 		console.log('exec:', exec);
-		console.log('Loi sélectionnée:', detection_law);
-		
+		console.log('Loi sélectionnée:', uparams.law);
+
 		if( exec.count <20000 || confirm("Démarrer avec "+exec.count+" points")){
-			document.getElementById('submitButton').setAttribute("disabled","disabled");		
+			document.getElementById('submitButton').setAttribute("disabled","disabled");
+			document.getElementById('restartButton').setAttribute("disabled","disabled");
+			document.getElementById('clearButton').setAttribute("disabled","disabled");
 			console.log("go!")
-			init()	
-			executeWithTimeProbe(function(){
-				updateGrid(detection_law);
-			},
-			10);
+			init()
+			run()
 			document.getElementById('stopButton').removeAttribute("disabled");
 		}
-	
-		
 	});
 
 	document.getElementById('stopButton').addEventListener('click', function() {
 		document.getElementById('stopButton').setAttribute("disabled","disabled");
 		console.log('Bouton Stop cliqué');
-		//suppression des grilles :) 
+		clearInterval(exec.jobWatcher);
 		clearInterval(exec.job);
 		document.getElementById('clearButton').removeAttribute("disabled");
 		document.getElementById('restartButton').removeAttribute("disabled");
@@ -449,10 +454,7 @@ form {
 		document.getElementById('restartButton').setAttribute("disabled","disabled");
 		document.getElementById('clearButton').setAttribute("disabled","disabled");
 		console.log('Bouton restart cliqué');
-		executeWithTimeProbe(function(){
-				updateGrid(detection_law);
-			},
-			10);
+		run()
 		document.getElementById('stopButton').removeAttribute("disabled");
 			
 	});
