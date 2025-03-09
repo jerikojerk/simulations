@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Emergence / Automates cellulaires cycliques</title>
     <style>
-	body {
-		margin: 0;
-		padding 0;
-		background-color: white;
-	}
+body {
+	margin: 0;
+	padding 0;
+	background-color: white;
+}
 #grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(2px, 1fr));
@@ -42,14 +42,10 @@ form {
 	<div id="content"><div id="grid"></div></div>
 	<form id="configForm"><fieldset><legend>Configurez votre monde</legend>
 		<p>
-			<label for="size">Taille de la cellule (1 à 10) :</label>
-			<input type="number" id="size" name="size" min="1" max="20"  value="3" required><br>
-			<label for="paletteSize">Nombre de couleurs :</label>
-			<input type="number" id="paletteSize" name="paletteSize" min="4" max="20" value="12" required><br><br>
-			<label for="width">Largeur en colonnes (4 à 500) :</label>
-			<input type="number" id="width" name="width" min="4" max="1024" value="300" required><br>
-			<label for="height">Hauteur en lignes (4 à 500) :</label>
-			<input type="number" id="height" name="height" min="4" max="1024" value="200" required><br><br>
+			<label for="size">Taille de la cellule (1 à 20) :</label>	<input type="number" id="size" name="size" min="1" max="20"  value="3" required><br>
+			<label for="paletteSize">Nombre de couleurs :</label>		<input type="number" id="paletteSize" name="paletteSize" min="4" max="20" value="12" required><br><br>
+			<label for="width">Largeur en colonnes (4 à 500) :</label>	<input type="number" id="width" name="width" min="4" max="1024" value="300" required><br>
+			<label for="height">Hauteur en lignes (4 à 500) :</label>	<input type="number" id="height" name="height" min="4" max="1024" value="200" required><br><br>
 			<label for="law">Sélectionner la loi :</label>
 			<select id="law" name="law" required>
 				<option value="law1">Loi 1</option>
@@ -58,9 +54,9 @@ form {
 			</select>
 		</p><p>
 			<label for="startColor">Cycle des couleurs</label>
-			<input type="color" id="startColor" name="startColor" value="#ffffcc" required>
-			<input type="color" id="middleColor" name="middleColor" value="#ffff00" required>
-			<input type="color" id="endColor" name="endColor" value="#ff8c00" required><br>
+			<input type="color" id="startColor" name="startColor" value="#FFFFC5" required>
+			<input type="color" id="middleColor" name="middleColor" value="#ff8000" required>
+			<input type="color" id="endColor" name="endColor" value="#F08080" required><br>
 		</p>
         <button type="submit" id="submitButton">&nbsp;&nbsp;&nbsp;Start&nbsp;&nbsp;&nbsp;</button>
         <button type="button" id="restartButton" disabled>Restart</button>
@@ -77,10 +73,6 @@ form {
 		width:0,
 		height:0,
 		psize:0,
-/*		startColor:[0, 0, 230],// light blue rgb( 173 , 216 , 230) 
-		middleColor:[255,255,0],//Light yellow (RGB: 255, 255, 224)
-		endColor:[255,128, 0],// Dark red (RGB: 139, 0, 0) 
-*/
 		startColor: [255, 255, 204], // Light Yellow
     	middleColor:[255, 140, 0], // Orange
     	endColor: [240, 128, 128], // Light Coral
@@ -404,7 +396,7 @@ form {
 		uparams.endColor = document.getElementById('endColor').value;		
 		switch(uparams.law){
 			case "law1": exec.detection_law=detection_law0;break;
-			case "law1": exec.detection_law=detection_law1;break;
+			case "law2": exec.detection_law=detection_law1;break;
 			case "law3": exec.detection_law=detection_law2;break;
 			default: exec.detection_law=detection_law0; 
 		}
